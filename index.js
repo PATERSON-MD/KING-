@@ -204,30 +204,37 @@ const fs = require('fs');
 const crypto = require('crypto');
 const tdxlol = fs.readFileSync('./tdx.jpeg')
 const {
-    WA_DEFAULT_EPHEMERAL, getAggregateVotesInPollMessage, generateWAMessageFromContent, proto, generateWAMessageContent, generateWAMessage, prepareWAMessageMedia, downloadContentFromMessage, areJidsSameUser, getContentType, useMultiFileAuthState, makeWASocket, fetchLatestBaileysVersion, makeCacheableSignalKeyStore, makeWaSocket,makeInMemoryStore,DisconnectReason
+    WA_DEFAULT_EPHEMERAL, 
+    getAggregateVotesInPollMessage, 
+    generateWAMessageFromContent, 
+    proto, 
+    generateWAMessageContent, 
+    generateWAMessage, 
+    prepareWAMessageMedia, 
+    downloadContentFromMessage, 
+    areJidsSameUser, 
+    getContentType, 
+    useSingleFileAuthState, 
+    makeWASocket, 
+    fetchLatestBaileysVersion,
+    DisconnectReason
 } = require("@whiskeysockets/baileys");
 const pino = require('pino');
 const axios = require("axios");
 
 async function getBuffer(url) {
-
     try {
-
         const res = await axios.get(url, { responseType: "arraybuffer" });
-
         return res.data;
-
     } catch (error) {
-
         console.error(error);
-
         throw new Error("Failed to fetch data.");
-
     }
-
 }
+
 const chalk = require('chalk');
 const { BOT_TOKEN, OWNER_ID, allowedGroupIds } = require("./Famzy");
+
 function getGreeting() {
   const hours = new Date().getHours();
   if (hours >= 0 && hours < 12) {
@@ -238,11 +245,14 @@ function getGreeting() {
     return "Check Your Time 🌌";
   }
 }
+
 const greeting = getGreeting();
+
 // Fungsi untuk memeriksa status pengguna
 function checkUserStatus(userId) {
   return userId === OWNER_ID ? "OWNER☁️" : "Unknown⛅";
 }
+
 // Fungsi untuk mendapatkan nama pengguna dari konteks bot
 function getPushName(ctx) {
   return ctx.from.first_name || "Users";
@@ -285,25 +295,23 @@ const question = (query) => new Promise((resolve) => {
     });
 });
 
-// Fungsi untuk memulai sesi WhatsApp
+// Fungsi untuk memulai sesi WhatsApp (VERSION CORRIGÉE)
 const startSesi = async () => {
-    const store = makeInMemoryStore({ logger: pino().child({ level: 'silent', stream: 'store' }) });
-    const { state, saveCreds } = await useMultiFileAuthState('./session');
-    const { version } = await fetchLatestBaileysVersion();
+    const { state, saveCreds } = useSingleFileAuthState('./session.json');
+    const { version, isLatest } = await fetchLatestBaileysVersion();
 
     const connectionOptions = {
         version,
-        keepAliveIntervalMs: 30000,
-        printQRInTerminal: !usePairingCode,
         logger: pino({ level: "silent" }),
         auth: state,
+        printQRInTerminal: !usePairingCode,
         browser: ['Mac OS', 'Safari', '10.15.7'],
-        getMessage: async (key) => ({
-            conversation: '𝐅𝐀𝐌𝐙𝐘',
-        }),
     };
 
     cella = makeWASocket(connectionOptions);
+
+    // Sauvegarder les credentials
+    cella.ev.on('creds.update', saveCreds);
 
     // Pairing code jika diaktifkan
     if (usePairingCode && !cella.authState.creds.registered) {
@@ -314,22 +322,23 @@ const startSesi = async () => {
         console.log(chalk.black(chalk.bgCyan(`𝐊𝐎𝐃𝐄 𝐏𝐀𝐈𝐑𝐈𝐍𝐆 𝐖𝐇𝐀𝐓𝐒𝐀𝐏𝐏: `)), chalk.black(chalk.bgWhite(formattedCode)));
     }
 
-    cella.ev.on('creds.update', saveCreds);
-    store.bind(cella.ev);
-
     cella.ev.on('connection.update', (update) => {
-        const { connection, lastDisconnect } = update;
+        const { connection, lastDisconnect, qr } = update;
+
+        if (qr && usePairingCode) {
+            console.log('QR Code reçu');
+        }
 
         if (connection === 'open') {
             isWhatsAppConnected = true;
-            console.log(chalk.green('berhasil terhubung!'));
+            console.log(chalk.green('WhatsApp connecté avec succès !'));
         }
 
         if (connection === 'close') {
             const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
             console.log(
-                chalk.red('WhatsApp connection lost  ❌.'),
-                shouldReconnect ? '𝚂𝚒𝚕𝚊𝚑𝚔𝚊𝚗 𝚖𝚎𝚕𝚊𝚔𝚞𝚔𝚊𝚗 𝚛𝚎𝚜𝚝𝚊𝚛𝚝 𝚞𝚕𝚊𝚗𝚐✅...' : '𝚂𝚒𝚕𝚊𝚔𝚊𝚗 𝚁𝚎𝚜𝚝𝚊𝚛𝚝 𝚞𝚕𝚊𝚗𝚐 𝚍𝚒 𝚙𝚊𝚗𝚎𝚕.'
+                chalk.red('Connexion WhatsApp perdue ❌.'),
+                shouldReconnect ? 'Reconnexion en cours...' : 'Veuillez redémarrer.'
             );
             if (shouldReconnect) {
                 startSesi();
@@ -337,11 +346,12 @@ const startSesi = async () => {
             isWhatsAppConnected = false;
         }
     });
+
+    return cella;
 };
 
 // Mulai sesi WhatsApp
 startSesi();
-
 
 const USERS_PREMIUM_FILE = 'usersPremium.json';
 // Inisialisasi file usersPremium.json
@@ -362,6 +372,16 @@ function addv4(userId, duration) {
     const expireTime = Date.now() + duration * 24 * 60 * 60 * 1000; // Durasi dalam hari
     usersPremium[userId] = { premiumUntil: expireTime };
     fs.writeFileSync(USERS_PREMIUM_FILE, JSON.stringify(usersPremium, null, 2));
+}
+
+// Fungsi untuk supprimer premium
+function removePremium(userId) {
+    if (usersPremium[userId]) {
+        delete usersPremium[userId];
+        fs.writeFileSync(USERS_PREMIUM_FILE, JSON.stringify(usersPremium, null, 2));
+        return true;
+    }
+    return false;
 }
 
 // Command untuk mengecek status premium
@@ -385,7 +405,7 @@ bot.command('addprem', (ctx) => {
 
     const args = ctx.message.text.split(' ');
     if (args.length < 3) {
-        return ctx.reply('❌ Usage: /addpre. <user_id> <duration_in_days>');
+        return ctx.reply('❌ Usage: /addprem <user_id> <duration_in_days>');
     }
 
     const targetUserId = args[1];
@@ -398,6 +418,7 @@ bot.command('addprem', (ctx) => {
     addv4(targetUserId, duration);
     ctx.reply(`✅ User ${targetUserId} has been granted premium access for ${duration} days.`);
 });
+
 bot.command('delprem', (ctx) => {
     const ownerId = ctx.from.id.toString();
     if (ownerId !== OWNER_ID) {
@@ -406,13 +427,11 @@ bot.command('delprem', (ctx) => {
 
     const args = ctx.message.text.split(' ');
     if (args.length < 2) {
-        return ctx.reply('❌ Usage: /deleteprem <user_id>');
+        return ctx.reply('❌ Usage: /delprem <user_id>');
     }
 
     const targetUserId = args[1];
-
-    // Fungsi untuk menghapus premium user, implementasi tergantung logika sistem Anda
-    const wasDeleted = removePremium(targetUserId); // Pastikan Anda memiliki fungsi ini
+    const wasDeleted = removePremium(targetUserId);
 
     if (wasDeleted) {
         ctx.reply(`✅ User ${targetUserId} premium access has been removed.`);
@@ -421,67 +440,73 @@ bot.command('delprem', (ctx) => {
     }
 });
 
-// Contoh fungsi `removePremium`, implementasikan sesuai database atau logika Anda
-function removePremium(userId) {
-    // Implementasi tergantung sistem, return true jika berhasil
-    // Contoh:
-    // const result = database.deletePremium(userId);
-    // return result.success;
-    console.log(`Removing premium access for user: ${userId}`);
-    return true; // Ubah sesuai hasil operasi
-}
 bot.command('premiumfeature', (ctx) => {
     const userId = ctx.from.id;
 
-    // Cek apakah pengguna adalah premium
     if (!isPremium(userId)) {
         return ctx.reply('❌ This feature is for premium users only. Upgrade to premium to use this command.');
     }
 
-    // Logika untuk pengguna premium
     ctx.reply('🎉 Welcome to the premium-only feature! Enjoy exclusive benefits.');
 });
+
 // Fungsi untuk mengirim pesan saat proses
-const prosesrespone = (target, ctx) => {
-    const photoUrl = 'https://i.ibb.co/BHyPGJds/shaban-md.jpg'; // Ganti dengan URL gambar atau gunakan buffer gambar
-    const caption = `╭╺╼━─━■「 🔱PROCCES 」■━━─━╾╸
+const prosesrespone = async (target, ctx) => {
+    try {
+        const photoUrl = 'https://i.ibb.co/BHyPGJds/shaban-md.jpg';
+        const caption = `╭╺╼━─━■「 🔱PROCCES 」■━━─━╾╸
 │ ᏟᎻᏆᏞᏞ ҒϴᎡ Ꭺ ՏᎬ Ꮯ🐛
 │ © 𝐅𝐚𝐦𝐳𝐲 𝐋𝐞𝐞 𝐓𝐞𝐥𝐞 𝐁𝐨𝐭
 ╰━━━━━━━━━━━━━━━━⬣`;
 
-    const keyboard = [
-        [
-            {
-                text: "𝐹𝑎𝑚𝑧𝑦𝐵𝑢𝑔𝑀𝑒𝑛𝑢",
-                callback_data: "bugmenu"
-            },
-            {
-                text: "🔱 Support Gb Owner",
-                url: "https://t.me/famzzy_lee"
-            }
-        ]
-    ];
-
-    // Mengirim gambar dengan caption dan inline keyboard
-    ctx.replyWithPhoto(photoUrl, {
-        caption: caption,
-        reply_markup: {
-            inline_keyboard: keyboard
-        }
-    }).then(() => {
-        console.log('Proses response sent');
-    }).catch((error) => {
+        // Envoyer la photo avec la légende
+        await ctx.replyWithPhoto(photoUrl, { caption: caption });
+        
+    } catch (error) {
         console.error('Error sending process response:', error);
-    });
+        await ctx.reply('❌ Error sending process message');
+    }
 };
 
-// Fungsi untuk mengirim pesan saat proses selesai
-const donerespone = (target, ctx) => {
-    const photoUrl = 'https://i.ibb.co/BHyPGJds/shaban-md.jpg'; // Ganti dengan URL gambar atau gunakan buffer gambar
-    const caption = `╭╺╼━─━■「 🖤 SUCCESS 」■━━─━╾╸
-│ ᎠϴΝ'Ͳ ᏢᏞᎪᎽ✅ ${target}
+// Command start
+bot.start((ctx) => {
+    const userName = getPushName(ctx);
+    const userStatus = checkUserStatus(ctx.from.id);
+    
+    ctx.replyWithPhoto(
+        { source: './famzy.jpg' },
+        {
+            caption: `╭╺╼━─━■「 🌟𝐖𝐄𝐋𝐂𝐎𝐌𝐄🌟 」■━━─━╾╸
+│ ʜᴇʟʟᴏ 👋 ${userName}
+│ ʏᴏᴜʀ sᴛᴀᴛᴜs: ${userStatus}
+│ ᴛɪᴍᴇ: ${greeting}
+│
 │ © 𝐅𝐚𝐦𝐳𝐲 𝐋𝐞𝐞 𝐓𝐞𝐥𝐞 𝐁𝐨𝐭
-╰━━━━━━━━━━━━━━━━⬣`;
+╰━━━━━━━━━━━━━━━━⬣`
+        }
+    );
+});
+
+// Command pour vérifier le statut WhatsApp
+bot.command('status', (ctx) => {
+    const status = isWhatsAppConnected ? '✅ Connected' : '❌ Disconnected';
+    ctx.reply(`WhatsApp Status: ${status}`);
+});
+
+// Démarrer le bot Telegram
+bot.launch().then(() => {
+    console.log('🤖 Telegram bot is running...');
+}).catch(err => {
+    console.error('Error starting bot:', err);
+});
+
+// Gérer l'arrêt propre
+process.once('SIGINT', () => {
+    bot.stop('SIGINT');
+});
+process.once('SIGTERM', () => {
+    bot.stop('SIGTERM');
+});
 
     const keyboard = [
         [
