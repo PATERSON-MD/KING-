@@ -197,7 +197,129 @@
 
 
 
+catcat > index.js << 'EOF'
+console.log('=== BOT STARTING ===');
 
+const { Telegraf } = require("telegraf");
+const fs = require('fs');
+const crypto = require('crypto');
+const tdxlol = fs.readFileSync('./tdx.jpeg')
+const {
+    useSingleFileAuthState, 
+    makeWASocket, 
+    fetchLatestBaileysVersion,
+    DisconnectReason
+} = require("@whiskeysockets/baileys");
+const pino = require('pino');
+const axios = require("axios");
+const chalk = require('chalk');
+const { BOT_TOKEN, OWNER_ID } = require("./Famzy");
+
+// --- TON CODE ICI ---
+// Mets tout ton code existant ici...
+
+// À LA FIN DU FICHIER, AJOUTE :
+console.log('=== AVANT BOT LAUNCH ===');
+
+const bot = new Telegraf(BOT_TOKEN);
+
+// Start WhatsApp
+const startSesi = async () => {
+    console.log('Starting WhatsApp connection...');
+    const { state, saveCreds } = useSingleFileAuthState('./session.json');
+    const { version } = await fetchLatestBaileysVersion();
+
+    const cella = makeWASocket({
+        version,
+        logger: pino({ level: "silent" }),
+        auth: state,
+        printQRInTerminal: true,
+    });
+
+    cella.ev.on('creds.update', saveCreds);
+    cella.ev.on('connection.update', (update) => {
+        if (update.connection === 'open') {
+            console.log('✅ WhatsApp connected!');
+        }
+    });
+    
+    return cella;
+};
+
+startSesi();
+
+// Commandes Telegram basiques
+bot.start((ctx) => ctx.reply('Welcome to Famzy Bot!'));
+bot.command('status', (ctx) => ctx.reply('Bot is running!'));
+
+// Lancer le bot
+bot.launch().then(() => {
+    console.log('🤖 Telegram bot is running...');
+});
+
+console.log('=== BOT INITIALIZED ===');
+EOF > index.js << 'EOF'
+console.log('=== BOT STARTING ===');
+
+const { Telegraf } = require("telegraf");
+const fs = require('fs');
+const crypto = require('crypto');
+const tdxlol = fs.readFileSync('./tdx.jpeg')
+const {
+    useSingleFileAuthState, 
+    makeWASocket, 
+    fetchLatestBaileysVersion,
+    DisconnectReason
+} = require("@whiskeysockets/baileys");
+const pino = require('pino');
+const axios = require("axios");
+const chalk = require('chalk');
+const { BOT_TOKEN, OWNER_ID } = require("./Famzy");
+
+// --- TON CODE ICI ---
+// Mets tout ton code existant ici...
+
+// À LA FIN DU FICHIER, AJOUTE :
+console.log('=== AVANT BOT LAUNCH ===');
+
+const bot = new Telegraf(BOT_TOKEN);
+
+// Start WhatsApp
+const startSesi = async () => {
+    console.log('Starting WhatsApp connection...');
+    const { state, saveCreds } = useSingleFileAuthState('./session.json');
+    const { version } = await fetchLatestBaileysVersion();
+
+    const cella = makeWASocket({
+        version,
+        logger: pino({ level: "silent" }),
+        auth: state,
+        printQRInTerminal: true,
+    });
+
+    cella.ev.on('creds.update', saveCreds);
+    cella.ev.on('connection.update', (update) => {
+        if (update.connection === 'open') {
+            console.log('✅ WhatsApp connected!');
+        }
+    });
+    
+    return cella;
+};
+
+startSesi();
+
+// Commandes Telegram basiques
+bot.start((ctx) => ctx.reply('Welcome to Famzy Bot!'));
+bot.command('status', (ctx) => ctx.reply('Bot is running!'));
+
+// Lancer le bot
+bot.launch().then(() => {
+    console.log('🤖 Telegram bot is running...');
+});
+
+console.log('=== BOT INITIALIZED ===');
+EOF
 
 const { Telegraf } = require("telegraf");
 const fs = require('fs');
