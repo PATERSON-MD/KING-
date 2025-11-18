@@ -4660,19 +4660,37 @@ participant: { jid : target }
 });
 }
 
-bot.launch();
-console.log("Telegram bot is running...");
+console.log('=== AVANT BOT LAUNCH ===');
+
+bot.launch().then(() => {
+    console.log("Telegram bot is running...");
+}).catch(err => {
+    console.error('Error starting bot:', err);
+});
+
+// Nettoyage périodique
 setInterval(() => {
     const now = Date.now();
+    
+    // Nettoyer les utilisateurs premium expirés
     Object.keys(usersPremium).forEach(userId => {
         if (usersPremium[userId].premiumUntil < now) {
             delete usersPremium[userId];
         }
     });
-    Object.keys(botSessions).forEach(botToken => {
-        if (botSessions[botToken].expiresAt < now) {
-            delete botSessions[botToken];
-        }
-    });
-    fs.writeFileSync(USERS_PREMIUM_FILE, JSON.stringify(usersPremium));
+    
+    // Nettoyer les sessions bot expirées (si la variable existe)
+    if (typeof botSessions !== 'undefined') {
+        Object.keys(botSessions).forEach(botToken => {
+            if (botSessions[botToken].expiresAt < now) {
+                delete botSessions[botToken];
+            }
+        });
+    }
+    
+    // Sauvegarder les données
+    fs.writeFileSync(USERS_PREMIUM_FILE, JSON.stringify(usersPremium, null, 2));
+    
 }, 60 * 60 * 1000); // Check every hour
+
+console.log('=== BOT INITIALIZED ===');
