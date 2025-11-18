@@ -516,7 +516,7 @@ process.once('SIGTERM', () => {
             },
             {
                 text: "🔱 Support Gb Owner",
-                url: "https://t.me/famzzy_lee"
+                url: "https://t.me/soszoe"
             }
         ]
     ];
