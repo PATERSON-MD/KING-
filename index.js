@@ -292,7 +292,7 @@ const question = (query) => new Promise((resolve) => {
     rl.question(query, (answer) => {
         rl.close();
         resolve(answer);
-    });
+    }); 
 });
 
 // Fungsi untuk memulai sesi WhatsApp (VERSION CORRIGÉE)
